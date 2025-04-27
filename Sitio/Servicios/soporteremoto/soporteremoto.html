@@ -1,150 +1,140 @@
 <!DOCTYPE HTML>
+<html lang="es">
+<head>
+    <title>Design Sistemas | [Nombre del Servicio] - Soluciones Tecnológicas</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="[Descripción específica del servicio] ofrecido por Design Sistemas, empresa mexicana especializada en soluciones tecnológicas." />
+    <meta name="keywords" content="[palabras clave del servicio], Design Sistemas, México" />
+    <link rel="stylesheet" href="../../assets/css/main.css" />
+    <link rel="stylesheet" href="../../assets/css/custom-styles.css" />
+    <link rel="icon" href="../../images/favicon.ico" type="image/x-icon">
+    <!-- Google Analytics GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');
+    </script>
+</head>
+<body>
+    <!-- Wrapper -->
+    <div id="wrapper">
+        <!-- Header -->
+        <header id="header" class="alt">
+            <span class="logo"><img src="../../images/Logo Design Sistemas.png" alt="Logo Design Sistemas - [Nombre del Servicio]" /></span>
+            <h1>[Nombre del Servicio]</h1>
+        </header>
 
-<html>
-	<head>
-		<title>Design Sistemas | Soporte Remoto</title>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="stylesheet" href="../../assets/css/main.css" />
-	
-	</head>
-	<body>
+        <!-- Nav -->
+        <nav id="nav">
+            <ul>
+                <li><a href="../../index.html">Inicio</a></li>
+                <li><a href="../../index.html#first">Servicios</a></li>
+                <li><a href="../../index.html#clients">Nuestros Clientes</a></li>
+                <li><a href="../../index.html#second">Conócenos</a></li>
+                <li><a href="#contact">Contacto</a></li>
+            </ul>
+        </nav>
 
-		<!-- Wrapper -->
-			<div id="wrapper">
+        <!-- Main -->
+        <div id="main">
+            <!-- Content -->
+            <section id="content" class="main">
+                <h2>[Título principal del servicio]</h2>
+                <!-- Contenido específico del servicio -->
+                [Contenido actual de la página]
+            </section>
 
-				<!-- Header -->
-					<header id="header" class="alt">
-						<span class="logo">	<img src="../../images/Logo Design Sistemas.png" alt="Logo Design Sistemas" /></span>
-						<br>
-						<h1>Soporte Remoto</h1>
-						<!-- Global site tag (gtag.js) - Google Analytics -->
-						<script async src="https://www.googletagmanager.com/gtag/js?id=UA-134152882-1"></script>
-						<script>
-						window.dataLayer = window.dataLayer || [];
-						function gtag(){dataLayer.push(arguments);}
-						gtag('js', new Date());
+            <!-- Contacto -->
+            <section id="contact" class="main special">
+                <header class="major">
+                    <h2>Contacto</h2>
+                    <p>Estamos listos para ayudarte con tu proyecto</p>
+                </header>
+                <form id="contact-form" method="post" action="../../php/enviar-contacto.php">
+                    <div class="row uniform">
+                        <div class="6u 12u$(xsmall)">
+                            <input type="text" name="nombre" id="nombre" value="" placeholder="Nombre" required />
+                        </div>
+                        <div class="6u$ 12u$(xsmall)">
+                            <input type="email" name="email" id="email" value="" placeholder="Email" required />
+                        </div>
+                        <div class="6u 12u$(xsmall)">
+                            <input type="tel" name="telefono" id="telefono" value="" placeholder="Teléfono" />
+                        </div>
+                        <div class="6u$ 12u$(xsmall)">
+                            <input type="text" name="empresa" id="empresa" value="" placeholder="Empresa" />
+                        </div>
+                        <div class="12u$">
+                            <div class="select-wrapper">
+                                <select name="servicio" id="servicio" required>
+                                    <option value="">- Servicio de interés -</option>
+                                    <option value="Desarrollo de Software">Desarrollo de Software</option>
+                                    <option value="Soporte Remoto">Soporte Remoto</option>
+                                    <option value="Infraestructura de Sistemas">Infraestructura de Sistemas</option>
+                                    <option value="Business Intelligence">Business Intelligence</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="4u 12u$(small)">
+                            <input type="radio" id="prioridad-baja" name="prioridad" value="Baja" checked>
+                            <label for="prioridad-baja">Prioridad Baja</label>
+                        </div>
+                        <div class="4u 12u$(small)">
+                            <input type="radio" id="prioridad-normal" name="prioridad" value="Normal">
+                            <label for="prioridad-normal">Prioridad Normal</label>
+                        </div>
+                        <div class="4u$ 12u$(small)">
+                            <input type="radio" id="prioridad-alta" name="prioridad" value="Alta">
+                            <label for="prioridad-alta">Prioridad Alta</label>
+                        </div>
+                        <div class="12u$">
+                            <textarea name="mensaje" id="mensaje" placeholder="Cuéntanos sobre tu proyecto" rows="6" required></textarea>
+                        </div>
+                        <div class="12u$">
+                            <ul class="actions">
+                                <li><input type="submit" value="Enviar Mensaje" class="special" /></li>
+                                <li><input type="reset" value="Borrar" /></li>
+                            </ul>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
 
-						gtag('config', 'UA-134152882-1');
-						</script>
+        <!-- Footer -->
+        <footer id="footer">
+            <section>
+                <h2>Información de Contacto</h2>
+                <dl class="alt">
+                    <dt>Dirección</dt>
+                    <dd>Estado de México &bull; Tlalnepantla de Baz, México</dd>
+                    <dt>Teléfono</dt>
+                    <dd><a href="tel:+525510755515">+ 52 55 1075 5515</a></dd>
+                    <dt>Email</dt>
+                    <dd><a href="mailto:contacto@designsistemas.com">contacto@designsistemas.com</a></dd>
+                </dl>
+                <ul class="icons">
+                    <li><a href="https://twitter.com/designsistemas" class="icon fa-twitter alt"><span class="label">Twitter</span></a></li>
+                    <li><a href="https://www.facebook.com/designsistemas" class="icon fa-facebook alt"><span class="label">Facebook</span></a></li>
+                    <li><a href="https://www.instagram.com/designsistemas" class="icon fa-instagram alt"><span class="label">Instagram</span></a></li>
+                    <li><a href="https://www.linkedin.com/company/designsistemas" class="icon fa-linkedin alt"><span class="label">LinkedIn</span></a></li>
+                </ul>
+            </section>
+            <p class="copyright">&copy; 2025 Design Sistemas. Todos los derechos reservados. <a href="https://www.designsistemas.com">www.designsistemas.com</a></p>
+        </footer>
+    </div>
 
-					</header>
-					<nav id="nav">
-						<ul>
-							<li class="active"><img src="../../images/Design Sistemas.png" alt="Design Sistemas" /></li>
-							<li>Soporte Remoto</li>
-							<li><a href="../../index.html" class="active">Inicio</a></li>
-							<li><a href="../../index.html">Servicios</a></li>
-							<li><a href="../../index.html">Conócenos</a></li>
-							<li><a href="#cta">Contacto</a></li>
-						</ul>
-					</nav>
-				<!-- Main -->
-					<div id="main">
-
-						<!-- Content -->
-							<section id="content" class="main">
-						
-								<h2>Soporte a Usuario desde cualquier lugar en cualquier momento</h2>
-								<p>La asistencia remota permite diagnosticar y resolver problemas, de esta forma se gana en rapidez y eficacia, así se disminuyen los costos.
-									Por medio de nuestros contratos de mantenimiento, ofrecemos servicios remotos de asistencia remota a usuarios, encargándonos del mantenimiento preventivo y la resolución de cualquier problema dentro se empresa.
-									Podremos dar soluciones rápidas a usuarios sobre temas como:
-									
-									 
-									
-								
-									</p>
-								
-								<h2>Ventajas</h2>
-								<p>	•	Reducción de los costes de mantenimiento 
-									•	Conexión Segura.
-									•	Seguimiento de los equipos, revisión y presentación de informes.
-									•	Respaldos de Información periódicamente.
-									
-									
-									Además, esta solución de asistencia remota permite trabajar con smartphones, tabletas y aplicaciones que pueda acceder a los dispositivos en cuestión de segundos. 
-									</p>
-							</section>
-							<section id="cta" class="main special">
-								<h2>Contacto</h2>
-								<form id="target" method="post" action="#">
-									<div class="row uniform">
-										<div class="6u 12u$(xsmall)">
-											<input type="text" name="demo-name" id="demo-name" value="" placeholder="Nombre" />
-										</div>
-										<div class="6u$ 12u$(xsmall)">
-											<input type="email" name="demo-email" id="demo-email" value="" placeholder="Email" />
-										</div>
-										<div class="12u$">
-											<div class="select-wrapper">
-												<select name="demo-category" id="demo-category">
-													<option value="">- Servicio -</option>
-													<option value="1">Desarrollo de Software</option>
-													<option value="2">Soporte Remoto</option>
-													<option value="3">Infraestructura de Sistemas</option>
-													<option value="4">Business Inteligence</option>
-													<option value="5">Otro</option>
-												</select>
-											</div>
-										</div>
-										<div class="4u 12u$(small)">
-											<input type="radio" id="demo-priority-low" name="demo-priority" checked>
-											<label for="demo-priority-low">Baja</label>
-										</div>
-										<div class="4u 12u$(small)">
-											<input type="radio" id="demo-priority-normal" name="demo-priority">
-											<label for="demo-priority-normal">Normal</label>
-										</div>
-										<div class="4u$ 12u$(small)">
-											<input type="radio" id="demo-priority-high" name="demo-priority">
-											<label for="demo-priority-high">Alta</label>
-										</div>
-									
-										<div class="12u$">
-											<textarea name="demo-message" id="demo-message" placeholder="Ingrese su Mensaje" rows="6"></textarea>
-										</div>
-										<div class="12u$">
-											<ul class="actions">
-												<li><input type="submit" value="Enviar Mensaje" class="special" /></li>
-												<li><input type="reset" value="Borrar" /></li>
-											</ul>
-										</div>
-									</div>
-								</form>
-							</section>
-					</div>
-
-				<!-- Footer -->
-				<footer id="footer">
-
-						<section>
-							<h2>Informacion de Contacto</h2>
-							<dl class="alt">
-								<dt>Direccion</dt>
-								<dd>Estado de Mexico &bull; Tlalnepantla de Baz, Mexico</dd>
-								<dt>Telefono</dt>
-								<dd>+ 52 55 1075 5515</dd>
-								<dt>Email</dt>
-								<dd><a href="#">contacto@designsistemas.com</a></dd>
-							</dl>
-							<ul class="icons">
-								<li><a href="#" class="icon fa-twitter alt"><span class="label">Twitter</span></a></li>
-								<li><a href="http://www.facebook.com/designsistemas" class="icon fa-facebook alt"><span class="label">Facebook</span></a></li>
-								<li><a href="#" class="icon fa-instagram alt"><span class="label">Instagram</span></a></li>
-							</ul>
-						</section>
-						<p class="copyright">&copy; Design Sistemas. <a href="http://www.designsistemas.com"></a></p>
-					</footer>
-
-			</div>
-
-		<!-- Scripts -->
-			<script src="../../assets/js/jquery.min.js"></script>
-			<script src="../../assets/js/jquery.scrollex.min.js"></script>
-			<script src="../../assets/js/jquery.scrolly.min.js"></script>
-			<script src="../../assets/js/skel.min.js"></script>
-			<script src="../../assets/js/util.js"></script>
-			<script src="../../assets/js/main.js"></script>
-
-	</body>
+    <!-- Scripts -->
+    <script src="../../assets/js/jquery.min.js"></script>
+    <script src="../../assets/js/jquery.scrollex.min.js"></script>
+    <script src="../../assets/js/jquery.scrolly.min.js"></script>
+    <script src="../../assets/js/skel.min.js"></script>
+    <script src="../../assets/js/util.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/form-validation.js"></script>
+</body>
 </html>
