@@ -67,4 +67,4 @@ done_bucket: "gs://0c5cc0eda1ea9e8e66ec8f2371e5676d42931f68a2cad37db6112cb84b8a7
 
 # Configuración incremental
 incremental_date_column: "src_upd_ts"
-incremental_days_history: "60" # Carga los últimos 60 días de datos
+incremental_days_history: "2" # Carga los últimos 60 días de datos
