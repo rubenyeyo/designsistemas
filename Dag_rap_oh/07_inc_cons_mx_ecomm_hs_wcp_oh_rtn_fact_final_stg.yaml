@@ -1,6 +1,7 @@
 #------------------------------------------------------------#
-# Propósito  : Carga incremental
+# Propósito  : Carga incremental FINAL - CORREGIDO PARA PROD
 # Proyecto   : One Hallway
+# FIX        : Corrección de inconsistencia en DDL productivo (ST_DESC duplicado)
 #------------------------------------------------------------#
 ---
 queries: |
@@ -10,7 +11,7 @@ queries: |
   SET hive.exec.dynamic.partition=true;
 
   
-   CREATE EXTERNAL TABLE IF NOT EXISTS $target_schema.$target_table (
+  CREATE EXTERNAL TABLE IF NOT EXISTS $target_schema.$target_table (
     RTN_LINE_KEY_DESC STRING COMMENT 'UNIQUE IDENTIFIER FOR THE RETURN LINE',
     RTN_HDR_KEY_DESC STRING COMMENT 'UNIQUE IDENTIFIER FOR THE RETURN HEADER',
     TENANT_ID_DESC STRING COMMENT 'IDENTIFIER FOR THE TENANT',
@@ -59,15 +60,19 @@ queries: |
     CREATE_USER_ID_DESC STRING COMMENT 'ID OF THE USER WHO CREATED THE RECORD',
     SHPMNT_NUM_DESC STRING COMMENT 'SHIPMENT NUMBER',
     ORIGN_GUID_DESC STRING COMMENT 'ORIGIN GUIDE NUMBER',
+    
+    -- *** CAMPOS CAC SEGÚN DDL PRODUCTIVO - CORREGIDO ***
     FIRST_NM STRING COMMENT 'FIRST NAME OF THE CUSTOMER',
     LAST_NM STRING COMMENT 'LAST NAME OF THE CUSTOMER',
     ST_DESC STRING COMMENT 'STREET ADDRESS',
     NBH_DESC STRING COMMENT 'NEIGHBORHOOD',
     MNCPL_DESC STRING COMMENT 'MUNICIPALITY OR DELEGATION',
+    -- *** FIX: Eliminamos el ST_DESC duplicado del DDL productivo ***
     POSTAL_CD STRING COMMENT 'POSTAL CODE',
     PH_DESC STRING COMMENT 'PHONE NUMBER',
     EMAIL_DESC STRING COMMENT 'EMAIL ADDRESS OF THE CUSTOMER',
-    CRE_EMAIL_DT DATE COMMENT 'DATE RELATED TO EMAIL CREATION',    
+    CRE_EMAIL_DT DATE COMMENT 'DATE RELATED TO EMAIL CREATION',
+    
     ORIG_QTY INT COMMENT 'ORIGINAL QUANTITY ORDERED',
     CHNL_DESC STRING COMMENT 'SALES OR RETURN CHANNEL',
     LINE_SEQ_NO_DESC STRING COMMENT 'LINE SEQUENCE NUMBER',
@@ -129,8 +134,8 @@ queries: |
       THEN 'Parcial'
       ELSE 'Total'
     END as tipo_de_devol
-  FROM stg_$target_schema.stg_rtn_core rtn
-  LEFT JOIN stg_$target_schema.stg_rtn_order ord
+  FROM stg_$target_schema.stg_$target_stg1 rtn
+  LEFT JOIN stg_$target_schema.stg_$target_stg3 ord
     ON rtn.sales_order_num = ord.sales_order_num 
     AND rtn.sales_order_line_num = ord.sales_order_line_num
   WHERE rtn.return_line_key IS NOT NULL  
@@ -138,7 +143,7 @@ queries: |
     rtn.sales_order_num,
     rtn.sales_order_line_num;
 
-  -- PASO 4: INSERTAR DATOS EN LA TABLA FINAL (CON MAPEO 100% EXACTO AL DDL)
+  -- PASO 4: INSERTAR DATOS EN LA TABLA FINAL
   INSERT OVERWRITE TABLE $target_schema.$target_table
   PARTITION (RTN_LINE_CRE_DT_PART)
   SELECT 
@@ -166,7 +171,7 @@ queries: |
     CORE.refund_at_store as EXTN_RFND_ADDL_STORE_DESC,
     CORE.extn_return_mode as EXTN_RTN_MODE_DESC,
     STATUS.agnt_cd as MODIFY_USER_ID,
-    CONCAT(CORE.tenant_id, '_', CORE.sales_order_num, '_', CORE.sales_order_line_num)  as DERIVED_FROM_ORDER_LINE_KEY_DESC,
+    CONCAT(CORE.tenant_id, '_', CORE.sales_order_num, '_', CORE.sales_order_line_num) as DERIVED_FROM_ORDER_LINE_KEY_DESC,
     CONCAT(CORE.tenant_id, '_', CORE.sales_order_num) as DERIVED_FROM_ORDER_HDR_KEY_DESC,
     ORDERS.ship_to_key as SHIP_TO_KEY_DESC,
     ORDERS.line_type as LINE_TYPE_DESC,
@@ -198,7 +203,7 @@ queries: |
     ORDERS.cp as POSTAL_CD,
     ORDERS.telefono as PH_DESC,
     ORDERS.email as EMAIL_DESC,
-    ORDERS.creacion_email as CRE_EMAIL_DT,    
+    ORDERS.creacion_email as CRE_EMAIL_DT,
     ORDERS.original_quantity as ORIG_QTY,
     ORDERS.canal as CHNL_DESC,
     ORDERS.line_seq_no as LINE_SEQ_NO_DESC,
@@ -244,7 +249,7 @@ queries: |
     AND CORE.rtn_order_num = STATUS.rtn_order_num 
     AND CORE.rtn_line_num = STATUS.rtn_line_num
   
-  -- JOIN con Orders consolidado (paso 3) - 
+  -- JOIN con Orders consolidado (paso 3)
   LEFT JOIN stg_$target_schema.stg_$target_stg3 ORDERS
     ON CORE.tenant_id = ORDERS.tenant_id 
     AND CORE.sales_order_num = ORDERS.sales_order_num 
