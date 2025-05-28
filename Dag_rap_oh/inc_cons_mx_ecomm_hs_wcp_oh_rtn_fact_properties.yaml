@@ -1,0 +1,70 @@
+tags: "OH,P0,ecomm,FRAMEWORK_2.0"
+hadoop_queue: "default"
+geo_region_cd: "mx"
+op_cmpny_code: "WMT-MX"
+user: "svcmxhs"
+country_code: "MX"
+domain: "ECOMM"
+emails: "one_hallway_mx@email.wal-mart.com"
+num_mappers: "1"
+engine: "tez"
+product: "OH"
+sub_system: "OD"
+typeload: "inc"
+priority: "P0"
+schedule: "daily"
+sla_mins: "120"
+data_clasificaction: "hs"
+days_his: "1"
+
+source_schema1: "mx_rtn_dl_tables"
+source_schema2: "mx_mb_dl_secure"
+source_schema3: "mx_supply_chain_dl_secure"
+source_schema4: "mx_customer_dl_secure"
+source_schema5: "mx_mdse_dl_tables"
+source_schema6: "mx_mdse_consumption_tables"
+source_schema7: "MX_WM_FIN_ECOMM_PYMT_DL_SECURE"
+source_schema8: "mx_pricing_dl_tables"
+
+source_target1: "rtn_order"
+source_target2: "rtn_order_line"
+source_target3: "rtn_order_sts_line"
+source_target4: "rtn_rcpt_line"
+source_target5: "rtn_order_grp_lbl_carr"
+source_target6: "rtn_order_grp_line"
+
+source_target7: "sales_order"
+source_target8: "sales_order_line"
+source_target9: "sales_order_fulfmt_dtl"
+source_target10: "fulfmt_order_line"
+source_target11: "sales_po_shpmnt_line"
+
+source_target12: "sales_po_shpmnt"
+source_target13: "sales_order_promo"
+source_target14: "ORDER_PYMT_MX"
+source_target15: "ecomm_prod"
+source_target16: "cust_addr_cntct"
+source_target17: "wmt_mx_item_services_item_id"
+source_target18: "carrier_dlvr_trksts"
+source_target19: "price_and_offr"
+
+# Framework 2.0 - Staging Tables Consolidadas - CORREGIDO
+target_stg1: "rtn_core"              # RO + ROL
+target_stg2: "rtn_status"            # ROSL + ROGL + RCL + ROGLC  
+target_stg3: "rtn_order"             # SO + SOL + SOP + CAC
+target_stg4: "rtn_payment"           # OP - AGREGADO
+target_stg5: "rtn_fulfillment"       # FOL + SOFD - AGREGADO
+target_stg6: "rtn_shipment"          # SPOSL + SPS + CDT - AGREGADO
+
+target_schema: "cons_mx_ecomm_hs"
+target_table: "wcp_oh_return_fact"
+target_table_item: "wcp_oh_item_dim"
+
+#buckets
+target_bucket: "gs://b64e1769840f909cb30d01b940bef415870ff879c62c3ae66fd06cfae9eac3"
+stg_bucket: "gs://96dcce0140e692c8ba37e3904f90d34f4ca491e0141a5c43bd7a61d3eea16d"
+done_bucket: "gs://0c5cc0eda1ea9e8e66ec8f2371e5676d42931f68a2cad37db6112cb84b8a74"
+
+# Configuración incremental
+incremental_date_column: "src_upd_ts"
+incremental_days_history: "60" # Carga los últimos 60 días de datos

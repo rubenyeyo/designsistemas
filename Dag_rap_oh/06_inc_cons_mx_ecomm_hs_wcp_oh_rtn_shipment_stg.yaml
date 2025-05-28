@@ -1,0 +1,126 @@
+#------------------------------------------------------------#
+# Propósito  : Carga incremental SHIPMENT - SPOSL + SPS + CDT
+# Proyecto   : One Hallway
+# Paso 6     : Enfoque simplificado y mantenible (sin JOINs complejos)
+#------------------------------------------------------------#
+---
+queries: |
+  SET spark.kryoserializer.buffer.max.mb=64;
+  SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY;
+
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment;
+
+  CREATE TABLE IF NOT EXISTS stg_$target_schema.stg_rtn_shipment (
+    -- Keys principales
+    tenant_id                STRING,
+    sales_order_num          STRING,
+    sales_order_line_num     STRING,
+    
+    -- Campos de SPOSL + SPS (Shipment + Tracking)
+    sposl_po_num             STRING,
+    tracking_id              STRING,
+    guia_origen              STRING,
+    shpmnt_num               STRING,
+    
+    -- Campos de CDT (Carrier Delivery Track Status)
+    cdt_po_num               STRING,
+    ship_node_org_nm         STRING,
+    
+    -- Control técnico
+    src_upd_ts               TIMESTAMP
+  )
+  STORED AS PARQUET
+  LOCATION '$stg_bucket/stg_$target_schema/stg_rtn_shipment';
+
+  -- PASO 1: Obtener datos básicos de SPOSL
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_sposl;
+  CREATE TABLE stg_$target_schema.stg_rtn_shipment_sposl AS
+  SELECT 
+    ids.tenant_id,
+    ids.sales_order_num,
+    ids.sales_order_line_num,
+    COALESCE(SPOSL.po_num, 'UNKNOWN') AS sposl_po_num,
+    COALESCE(SPOSL.shpmnt_num, 'UNKNOWN') AS shpmnt_num
+  FROM (
+    SELECT DISTINCT tenant_id, sales_order_num, sales_order_line_num, po_num
+    FROM stg_$target_schema.stg_rtn_fulfillment
+    WHERE po_num != 'UNKNOWN'
+  ) ids
+  LEFT JOIN $source_schema3.$source_target11 SPOSL  -- sales_po_shpmnt_line
+    ON ids.tenant_id = SPOSL.tenant_id 
+    AND ids.sales_order_num = SPOSL.sales_order_num 
+    AND ids.sales_order_line_num = SPOSL.sales_order_line_num 
+    AND ids.po_num = SPOSL.po_num;
+
+  -- PASO 2: Obtener datos básicos de SPS (sin EXISTS complejo)
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_sps;
+  CREATE TABLE stg_$target_schema.stg_rtn_shipment_sps AS
+  SELECT 
+    sposl.tenant_id,
+    sposl.sales_order_num,
+    sposl.sales_order_line_num,
+    COALESCE(SPS.tracking_id, 'UNKNOWN') AS tracking_id
+  FROM stg_$target_schema.stg_rtn_shipment_sposl sposl
+  LEFT JOIN $source_schema3.$source_target12 SPS  -- sales_po_shpmnt
+    ON sposl.sales_order_num = SPS.sales_order_num
+    AND sposl.shpmnt_num = SPS.shpmnt_num;
+
+  -- PASO 3: Obtener datos básicos de CDT
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_cdt;
+  CREATE TABLE stg_$target_schema.stg_rtn_shipment_cdt AS
+  SELECT 
+    sposl.tenant_id,
+    sposl.sales_order_num,
+    sposl.sales_order_line_num,
+    COALESCE(CDT.po_num, 'UNKNOWN') AS cdt_po_num,
+    COALESCE(CDT.ship_node_org_nm, 'UNKNOWN') AS ship_node_org_nm
+  FROM stg_$target_schema.stg_rtn_shipment_sposl sposl
+  LEFT JOIN $source_schema3.$source_target18 CDT  -- carrier_dlvr_trksts
+    ON sposl.tenant_id = CDT.tenant_id 
+    AND sposl.sales_order_num = CDT.sales_order_num
+    AND sposl.sposl_po_num = CDT.po_num;
+
+  -- PASO 4: Consolidar todos los datos de shipment
+  INSERT OVERWRITE TABLE stg_$target_schema.stg_rtn_shipment
+  SELECT
+    -- Keys principales - desde tabla base para asegurar completitud
+    base.tenant_id,
+    base.sales_order_num,
+    base.sales_order_line_num,
+    
+    -- Campos de SPOSL
+    COALESCE(sposl.sposl_po_num, 'UNKNOWN') AS sposl_po_num,
+    
+    -- Campos de SPS
+    COALESCE(sps.tracking_id, 'UNKNOWN') AS tracking_id,
+    COALESCE(sps.tracking_id, 'UNKNOWN') AS guia_origen,
+    COALESCE(sposl.shpmnt_num, 'UNKNOWN') AS shpmnt_num,
+    
+    -- Campos de CDT
+    COALESCE(cdt.cdt_po_num, 'UNKNOWN') AS cdt_po_num,
+    COALESCE(cdt.ship_node_org_nm, 'UNKNOWN') AS ship_node_org_nm,
+    
+    -- Control técnico
+    CURRENT_TIMESTAMP() AS src_upd_ts
+    
+  FROM (
+    SELECT DISTINCT tenant_id, sales_order_num, sales_order_line_num
+    FROM stg_$target_schema.stg_rtn_fulfillment
+  ) base
+  LEFT JOIN stg_$target_schema.stg_rtn_shipment_sposl sposl
+    ON base.tenant_id = sposl.tenant_id 
+    AND base.sales_order_num = sposl.sales_order_num 
+    AND base.sales_order_line_num = sposl.sales_order_line_num
+  LEFT JOIN stg_$target_schema.stg_rtn_shipment_sps sps
+    ON base.tenant_id = sps.tenant_id 
+    AND base.sales_order_num = sps.sales_order_num 
+    AND base.sales_order_line_num = sps.sales_order_line_num
+  LEFT JOIN stg_$target_schema.stg_rtn_shipment_cdt cdt
+    ON base.tenant_id = cdt.tenant_id 
+    AND base.sales_order_num = cdt.sales_order_num 
+    AND base.sales_order_line_num = cdt.sales_order_line_num;
+
+  -- Limpiar tablas temporales
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_sposl;
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_sps;
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_shipment_cdt;

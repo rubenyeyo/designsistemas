@@ -1,0 +1,147 @@
+#------------------------------------------------------------#
+# Propósito  : Carga incremental FULFILLMENT - FOL + SOFD
+# Proyecto   : One Hallway  
+# Paso 4B    : Enfoque simplificado y mantenible
+#------------------------------------------------------------#
+---
+queries: |
+  SET spark.kryoserializer.buffer.max.mb=64;
+  SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY;
+
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_fulfillment;
+
+  CREATE TABLE IF NOT EXISTS stg_$target_schema.stg_rtn_fulfillment (
+    -- Keys principales
+    tenant_id                STRING,
+    sales_order_num          STRING,
+    sales_order_line_num     STRING,
+    
+    -- Campos de FOL (Fulfillment Order Line)
+    dstrbtr_type_nm          STRING,
+    fol_ship_node_org_cd     STRING,
+    po_num                   STRING,
+    
+    -- Campos de SOFD (Sales Order Fulfillment Details)
+    ship_node_org_cd         STRING,
+    std_carrier_alpha_cd     STRING,
+    node_type_nm             STRING,
+    
+    -- DETERMINANTE (Lógica simplificada)
+    determinante             STRING,
+    
+    -- Almacén detalle (Lógica simplificada)
+    almacen_detalle          STRING,
+    almacen_de_origen        STRING,
+    
+    -- Control técnico
+    src_upd_ts               TIMESTAMP
+  )
+  STORED AS PARQUET
+  LOCATION '$stg_bucket/stg_$target_schema/stg_rtn_fulfillment';
+
+  -- Obtener IDs de sales orders desde paso anterior + campos técnicos necesarios
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_fulfillment_order_ids;
+  CREATE TABLE stg_$target_schema.stg_rtn_fulfillment_order_ids AS
+  SELECT DISTINCT 
+    tenant_id, sales_order_num, sales_order_line_num,
+    wm_fulfmt_svc_glbl_ind, slr_org_cd, src_fulfmt_type_nm, wfs_ind
+  FROM stg_$target_schema.stg_$target_stg3
+  WHERE tenant_id IS NOT NULL 
+  AND sales_order_num IS NOT NULL 
+  AND sales_order_line_num IS NOT NULL;
+
+  -- Carga consolidada FOL + SOFD
+  INSERT OVERWRITE TABLE stg_$target_schema.stg_rtn_fulfillment
+  SELECT
+    -- Keys principales
+    ids.tenant_id,
+    ids.sales_order_num,
+    ids.sales_order_line_num,
+    
+    -- Campos de FOL (Fulfillment Order Line)
+    COALESCE(FOL.DSTRBTR_TYPE_NM, 'UNKNOWN') AS dstrbtr_type_nm,
+    COALESCE(FOL.SHIP_NODE_ORG_CD, 'UNKNOWN') AS fol_ship_node_org_cd,
+    COALESCE(FOL.po_num, 'UNKNOWN') AS po_num,
+    
+    -- Campos de SOFD (Sales Order Fulfillment Details)
+    COALESCE(SOFD.ship_node_org_cd, 'UNKNOWN') AS ship_node_org_cd,
+    COALESCE(SOFD.std_carrier_alpha_cd, 'UNKNOWN') AS std_carrier_alpha_cd,
+    COALESCE(SOFD.node_type_nm, 'UNKNOWN') AS node_type_nm,
+    
+    -- DETERMINANTE - Lógica SIMPLIFICADA pero funcional
+    CASE 
+      WHEN ids.wm_fulfmt_svc_glbl_ind = 1 THEN 
+        CONCAT('DC_GLOBAL_', COALESCE(SOFD.std_carrier_alpha_cd, 'UNKNOWN'))
+      WHEN COALESCE(ids.slr_org_cd, '0') != '0' AND COALESCE(ids.src_fulfmt_type_nm, '') = 'DELIVERY' AND ids.wfs_ind = 1 THEN
+        COALESCE(
+          CASE WHEN FOL.DSTRBTR_TYPE_NM IS NOT NULL AND FOL.SHIP_NODE_ORG_CD IS NOT NULL 
+               THEN CONCAT(FOL.DSTRBTR_TYPE_NM, '_', FOL.SHIP_NODE_ORG_CD) 
+               ELSE NULL END,
+          CONCAT('DSV_', SOFD.std_carrier_alpha_cd)
+        )
+      WHEN COALESCE(ids.slr_org_cd, '0') != '0' AND COALESCE(ids.src_fulfmt_type_nm, '') = 'DELIVERY' AND ids.wfs_ind = 0 THEN 
+        COALESCE(FOL.SHIP_NODE_ORG_CD, CONCAT('DSV_', SOFD.std_carrier_alpha_cd))
+      WHEN COALESCE(ids.slr_org_cd, '0') = '0' AND COALESCE(ids.src_fulfmt_type_nm, '') = 'DELIVERY' THEN 
+        COALESCE(
+          CASE WHEN FOL.DSTRBTR_TYPE_NM IS NOT NULL AND FOL.SHIP_NODE_ORG_CD IS NOT NULL 
+               THEN CONCAT(FOL.DSTRBTR_TYPE_NM, '_', FOL.SHIP_NODE_ORG_CD) 
+               ELSE NULL END,
+          CONCAT('DSV_', SOFD.std_carrier_alpha_cd)
+        )
+      WHEN COALESCE(ids.src_fulfmt_type_nm, '') = 'PICKUP' THEN 
+        CONCAT('STORE_', COALESCE(SOFD.ship_node_org_cd, 'UNKNOWN'))
+      ELSE 
+        CONCAT(
+          COALESCE(FOL.DSTRBTR_TYPE_NM, 'UNKNOWN'), 
+          '_', 
+          COALESCE(SOFD.ship_node_org_cd, FOL.SHIP_NODE_ORG_CD, 'UNKNOWN')
+        )
+    END AS determinante,
+    
+    -- Almacén detalle - Lógica simplificada de mapeo FC
+    CASE
+      WHEN SOFD.ship_node_org_cd IN ('DC_5956', 'DC_5930') THEN 'FC GDL'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5468', 'DC_5781') THEN 'FC MX'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5955', 'DC_5931') THEN 'FC MTY'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5975', 'DC_5976') THEN 'FC MPK'
+      WHEN SOFD.ship_node_org_cd IN ('DC_6071', 'DC_4188') THEN 'FC MID'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5858', 'DC_4924') THEN 'FC MXL'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5877', 'DC_7487') THEN 'FC CLN'
+      WHEN SOFD.ship_node_org_cd IN ('DC_5883', 'DC_4640') THEN 'FC CHH'
+      WHEN SOFD.ship_node_org_cd IN ('DC_8718', 'DC_8712', 'DC_8711', 'DC_8707') THEN 'FC TPZK'
+      WHEN SOFD.ship_node_org_cd IN ('DC_8710', 'DC_5854', 'DC_5885') THEN 'FC SAMS'
+      WHEN SOFD.ship_node_org_cd IN ('DC_7468', 'DC_8725') THEN 'FC VH'
+      WHEN SOFD.ship_node_org_cd = '900028021' THEN 'FC GLOBAL'
+      WHEN SOFD.ship_node_org_cd LIKE 'DC_%' THEN 'FC'
+      WHEN SOFD.ship_node_org_cd LIKE 'DSV%' THEN 'DSV'
+      WHEN SOFD.ship_node_org_cd LIKE 'MP_%' OR SOFD.ship_node_org_cd LIKE 'STO%' THEN 'MKP'
+      ELSE 'UNKNOWN'
+    END AS almacen_detalle,
+    
+    -- Almacén de origen simplificado
+    CASE 
+      WHEN SOFD.ship_node_org_cd LIKE 'DC_%' THEN 'FC'
+      WHEN SOFD.ship_node_org_cd LIKE 'DSV%' THEN 'DSV'
+      WHEN SOFD.ship_node_org_cd LIKE 'MP_%' THEN 'MKP'
+      ELSE 'UNKNOWN' 
+    END as almacen_de_origen,
+    
+    -- Control técnico
+    GREATEST(
+      COALESCE(FOL.src_modfd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(SOFD.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      CURRENT_TIMESTAMP()
+    ) AS src_upd_ts
+    
+  FROM stg_$target_schema.stg_rtn_fulfillment_order_ids ids
+  LEFT JOIN $source_schema3.$source_target10 FOL  -- fulfmt_order_line
+    ON ids.tenant_id = FOL.tenant_id 
+    AND ids.sales_order_num = FOL.sales_order_num 
+    AND ids.sales_order_line_num = FOL.sales_order_line_num
+  LEFT JOIN $source_schema2.$source_target9 SOFD  -- sales_order_fulfmt_dtl
+    ON ids.tenant_id = SOFD.tenant_id 
+    AND ids.sales_order_num = SOFD.sales_order_num 
+    AND ids.sales_order_line_num = SOFD.sales_order_line_num;
+
+  -- Limpiar tabla temporal
+  DROP TABLE IF EXISTS stg_$target_schema.stg_rtn_fulfillment_order_ids;

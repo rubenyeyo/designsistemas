@@ -1,0 +1,96 @@
+name: "inc-cons-mx-ecomm-hs-wcp-oh-returns"
+version: "1.1"
+cluster_name: "inc-cons-mx-ecomm-hs-wcp-oh-returns"
+cluster_profile: "large"
+data_group: "ecomm_hs"
+path: "inc/cons_mx_ecomm_hs/wcp_oh_return_fact/"
+enable_dpaas: true
+enable_hudi: true
+load_type: incremental
+partition_column: RTN_LINE_CRE_DT
+incremental_column: SRC_UPD_TS
+developer: ruben.valdes0@walmart.com
+properties_file: "inc_cons_mx_ecomm_hs_wcp_oh_rtn_fact_properties.yaml"
+
+tasks:
+
+- name: "start"
+  type: "START"
+  description: ""
+  long_name: "start"
+  curr_id: 1
+  properties: {}
+
+- name: "load_stg_rtn_core"
+  type: "SPARK_SQL"
+  description: "01_load_stg_rtn_core - RO + ROL Consolidado"
+  long_name: "01_load_stg_rtn_core_consolidated"
+  curr_id: 2
+  parents:
+    - "start"
+  properties_file: "01_inc_cons_mx_ecomm_hs_wcp_oh_rtn_core_stg.yaml"
+
+- name: "load_stg_rtn_status"
+  type: "SPARK_SQL"
+  description: "02_load_stg_rtn_status - ROSL + ROGL + RCL + ROGLC Consolidado"
+  long_name: "02_load_stg_rtn_status_consolidated"
+  curr_id: 3
+  parents:
+    - "load_stg_rtn_core"
+  properties_file: "02_inc_cons_mx_ecomm_hs_wcp_oh_rtn_status_stg.yaml"
+
+- name: "load_stg_rtn_order"
+  type: "SPARK_SQL"
+  description: "03_load_stg_rtn_order - SO + SOL + SOP + CAC Consolidado"
+  long_name: "03_load_stg_rtn_order_consolidated"
+  curr_id: 4
+  parents:
+    - "load_stg_rtn_status"
+  properties_file: "03_inc_cons_mx_ecomm_hs_wcp_oh_rtn_order_stg.yaml"
+
+- name: "load_stg_rtn_payment"
+  type: "SPARK_SQL"
+  description: "04_load_stg_rtn_payment - OP Payment Consolidado"
+  long_name: "04_load_stg_rtn_payment_consolidated"
+  curr_id: 5
+  parents:
+    - "load_stg_rtn_order"
+  properties_file: "04_inc_cons_mx_ecomm_hs_wcp_oh_rtn_payment_stg.yaml"
+
+- name: "load_stg_rtn_fulfillment"
+  type: "SPARK_SQL"
+  description: "05_load_stg_rtn_fulfillment - FOL + SOFD Fulfillment Consolidado"
+  long_name: "05_load_stg_rtn_fulfillment_consolidated"
+  curr_id: 6
+  parents:
+    - "load_stg_rtn_payment"
+  properties_file: "05_inc_cons_mx_ecomm_hs_wcp_oh_rtn_fulfillment_stg.yaml"
+
+- name: "load_stg_rtn_shipment"
+  type: "SPARK_SQL"
+  description: "06_load_stg_rtn_shipment - SPOSL + SPS + CDT Shipment Consolidado"
+  long_name: "06_load_stg_rtn_shipment_consolidated"
+  curr_id: 7
+  parents:
+    - "load_stg_rtn_fulfillment"
+  properties_file: "06_inc_cons_mx_ecomm_hs_wcp_oh_rtn_shipment_stg.yaml"
+
+- name: "load_rtn_fact_final"
+  type: "SPARK_SQL"
+  description: "07_load_rtn_fact_final - PNO + ITID + Final Assembly"
+  long_name: "07_load_rtn_fact_final"
+  curr_id: 8
+  parents:
+    - "load_stg_rtn_shipment"
+  properties_file: "07_inc_cons_mx_ecomm_hs_wcp_oh_rtn_fact_final_stg.yaml"
+  
+- name: "end"
+  type: "END"
+  description: ""
+  long_name: "end"
+  curr_id: 9
+  parents:
+    - "load_rtn_fact_final"
+  properties:
+    done_file_path: "$done_bucket/$target_schema/$op_cmpny_code_$target_table/$geo_region_cd"
+    done_file_name: "$target_schema_$op_cmpny_code_$target_table_YYYYMMddHHmmss.done"

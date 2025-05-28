@@ -1,0 +1,208 @@
+#------------------------------------------------------------#
+# Propósito  : Carga incremental consolidada SO + SOL + SOP
+#              (Sales Orders + Sales Order Lines + Promos)
+# Proyecto   : One Hallway
+# TEMPORAL   : Sin CAC (cust_addr_cntct) - tabla no disponible
+#------------------------------------------------------------#
+---
+queries: |
+  SET spark.kryoserializer.buffer.max.mb=64;
+  SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY;
+
+  DROP TABLE IF EXISTS stg_$target_schema.stg_$target_stg3;
+
+  CREATE TABLE IF NOT EXISTS stg_$target_schema.stg_$target_stg3 (
+    -- Campos de SOL (Sales Order Line) - Tabla principal
+    tenant_id                STRING,
+    sales_order_num          STRING,
+    sales_order_line_num     STRING,
+    ship_to_key              STRING,
+    line_type                STRING,
+    ki                       STRING,
+    upc                      STRING,
+    tipo_de_entrega          STRING,
+    id_proveedor_seller      STRING,
+    proveedor_seller         STRING,
+    item_id                  STRING,
+    original_quantity        INT,
+    line_seq_no              STRING,
+    prime_line_nbr           STRING,
+    original_fecha_creacion  DATE,
+    item_weight              DOUBLE,
+    item_weight_uom          STRING,
+    -- Campos técnicos SOL para determinante
+    wm_fulfmt_svc_glbl_ind   INT,
+    slr_org_cd               STRING,
+    src_fulfmt_type_nm       STRING,
+    wfs_ind                  INT,
+    prod_offr_id             STRING,
+    slr_nm                   STRING,
+    wm_item_num              STRING,
+    order_placed_dt          DATE,
+    src_ship_to_addr_cd      STRING,
+    
+    -- Campos de SO (Sales Order Header)
+    original_order           STRING,
+    canal                    STRING,
+    canal_compra             STRING,
+    extd_sps_id              STRING,
+    src_bill_to_addr_id      STRING,
+    dev_type                 STRING,
+    order_src_cd             STRING,
+    
+    -- Campos de SOP (Sales Order Promo)
+    dx_cupon_ds              STRING,
+    extd_coupn_cd_array      STRING,
+    
+    -- *** CAMPOS CAC COMENTADOS TEMPORALMENTE ***
+    -- first_name               STRING,
+    -- last_name                STRING,
+    -- calle                    STRING,
+    -- colonia                  STRING,
+    -- delegacion               STRING,
+    -- estado                   STRING,
+    -- cp                       STRING,
+    -- telefono                 STRING,
+    -- email                    STRING,
+    -- creacion_email           DATE,
+    
+    -- Control técnico
+    src_upd_ts               TIMESTAMP
+  )
+  STORED AS PARQUET
+  LOCATION '$stg_bucket/stg_$target_schema/stg_$target_stg3';
+
+  -- Obtener IDs de sales orders modificadas desde paso anterior
+  DROP TABLE IF EXISTS stg_$target_schema.stg_${target_stg3}_order_ids;
+  CREATE TABLE stg_$target_schema.stg_${target_stg3}_order_ids AS
+  SELECT tenant_id, sales_order_num, sales_order_line_num
+  FROM stg_$target_schema.stg_$target_stg1
+  WHERE sales_order_num IS NOT NULL AND sales_order_line_num IS NOT NULL
+  GROUP BY tenant_id, sales_order_num, sales_order_line_num;
+
+  -- Carga consolidada SO + SOL + SOP (SIN CAC)
+  INSERT OVERWRITE TABLE stg_$target_schema.stg_$target_stg3
+  SELECT
+    -- Campos de SOL (Sales Order Line) - Tabla principal
+    SOL.tenant_id,
+    SOL.sales_order_num,
+    SOL.sales_order_line_num,
+    SOL.SRC_SHIP_TO_ADDR_CD as ship_to_key,
+    CASE
+      WHEN SOL.src_fulfmt_type_nm = 'DELIVERY' THEN 'PHYSICAL'
+      WHEN SOL.src_fulfmt_type_nm = 'PICKUP' THEN 'STORE'
+      ELSE NULL
+    END AS line_type,
+    CONCAT(SOL.sales_order_num, '-', SOL.sales_order_line_num, '-', SOL.UPC) as ki,
+    SOL.UPC,
+    CASE
+      WHEN SOL.src_fulfmt_type_nm = 'DELIVERY' THEN 'SHP'
+      WHEN SOL.src_fulfmt_type_nm = 'PICKUP' THEN 'PICK'
+      ELSE NULL
+    END as tipo_de_entrega,
+    COALESCE(SOL.SLR_ORG_CD, "0") as id_proveedor_seller,
+    SOL.SLR_NM as proveedor_seller,
+    CAST(CASE 
+      WHEN SOL.SLR_ORG_CD = '0' THEN SOL.UPC 
+      ELSE SOL.prod_offr_id 
+    END AS STRING) as item_id,
+    SOL.ORIG_ORDER_QTY as original_quantity,
+    CONCAT(SOL.SALES_ORDER_LINE_NUM, '.1') as line_seq_no,
+    SOL.sales_order_line_num as prime_line_nbr,
+    DATE(SOL.ORDER_PLACED_TS) as original_fecha_creacion,
+    SOL.item_wt as item_weight,
+    SOL.wt_uom_cd as item_weight_uom,
+    
+    -- Campos técnicos SOL para determinante
+    SOL.wm_fulfmt_svc_glbl_ind,
+    SOL.SLR_ORG_CD as slr_org_cd,
+    SOL.src_fulfmt_type_nm,
+    SOL.wfs_ind,
+    SOL.prod_offr_id,
+    SOL.slr_nm,
+    SOL.wm_item_num,
+    SOL.order_placed_dt,
+    SOL.SRC_SHIP_TO_ADDR_CD as src_ship_to_addr_cd,
+    
+    -- Campos de SO (Sales Order Header) con lógica de CANAL
+    SO.sales_order_num as original_order,
+    CASE 
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd IN ('1','2') THEN 'EA_WM_WEB'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd IN ('1','2') THEN 'EA_BD_WEB'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd IN ('4','5') THEN 'EA_WM_IOS'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd IN ('4','5') THEN 'EA_BD_IOS'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd = '6' THEN 'EA_WM_ANDROID'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd = '6' THEN 'EA_BD_ANDROID'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd = 'KIOSK' THEN 'EA_WM_KIOSK'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd = 'KIOSK' THEN 'EA_BD_KIOSK'
+      WHEN SO.tenant_id = 'hvgqan' THEN 'EA_WM_WEB'
+      WHEN SO.tenant_id = 'klfyok' THEN 'EA_BD_WEB'
+      ELSE NULL
+    END AS canal,
+    CASE 
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd IN ('1','2') THEN 'EA_WM_WEB'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd IN ('1','2') THEN 'EA_BD_WEB'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd IN ('4','5') THEN 'EA_WM_IOS'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd IN ('4','5') THEN 'EA_BD_IOS'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd = '6' THEN 'EA_WM_ANDROID'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd = '6' THEN 'EA_BD_ANDROID'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'hvgqan' AND SO.order_src_cd = 'KIOSK' THEN 'EA_WM_KIOSK'
+      WHEN SO.dev_type IS NOT NULL AND SO.tenant_id = 'klfyok' AND SO.order_src_cd = 'KIOSK' THEN 'EA_BD_KIOSK'
+      WHEN SO.tenant_id = 'hvgqan' THEN 'EA_WM_WEB'
+      WHEN SO.tenant_id = 'klfyok' THEN 'EA_BD_WEB'
+      ELSE NULL
+    END AS canal_compra,
+    SO.src_cust_acct_id as extd_sps_id,
+    SO.src_bill_to_addr_id,
+    SO.dev_type,
+    SO.order_src_cd,
+    
+    -- Campos de SOP (Sales Order Promo)
+    SOP.extd_coupn_cd_array as dx_cupon_ds,
+    SOP.EXTD_COUPN_CD_ARRAY as extd_coupn_cd_array,
+    
+    -- *** CAMPOS CAC COMENTADOS TEMPORALMENTE ***
+    -- CAC.persn_first_nm as first_name,
+    -- CAC.persn_last_nm as last_name,
+    -- CAC.addr_line_1_txt as calle,
+    -- CAC.addr_line_2_txt as colonia,
+    -- CAC.addr_line_3_txt as delegacion,
+    -- CAC.st_prov_nm as estado,
+    -- CAC.zip_cd as cp,
+    -- CAC.persn_daytm_ph_nbr as telefono,
+    -- CAC.persn_email_id as email,
+    -- CAST(CAC.src_create_ts AS DATE) as creacion_email,
+    
+    -- Control técnico - timestamp más reciente (SIN CAC)
+    GREATEST(
+      COALESCE(SOL.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(SO.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(SOP.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP))
+      -- COALESCE(CAC.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP))  -- COMENTADO
+    ) AS src_upd_ts
+
+  FROM stg_$target_schema.stg_${target_stg3}_order_ids ids
+  
+  -- JOIN principal con SOL (Sales Order Line) - Tabla principal
+  INNER JOIN $source_schema2.$source_target8 SOL  -- sales_order_line
+    ON ids.tenant_id = SOL.tenant_id 
+    AND ids.sales_order_num = SOL.sales_order_num 
+    AND ids.sales_order_line_num = SOL.sales_order_line_num
+  
+  -- JOIN con SO (Sales Order Header)
+  LEFT JOIN $source_schema2.$source_target7 SO  -- sales_order
+    ON SOL.tenant_id = SO.tenant_id 
+    AND SOL.sales_order_num = SO.sales_order_num
+  
+  -- JOIN con SOP (Sales Order Promo) - Solo cuando hay cupones
+  LEFT JOIN $source_schema2.$source_target13 SOP  -- sales_order_promo
+    ON SO.tenant_id = SOP.tenant_id 
+    AND SO.sales_order_num = SOP.sales_order_num 
+    AND SOP.EXTD_COUPN_CD_ARRAY IS NOT NULL;
+  
+  -- *** JOIN CON CAC COMENTADO TEMPORALMENTE ***
+  -- LEFT JOIN $source_schema4.$source_target16 CAC  -- cust_addr_cntct
+  --   ON SO.src_bill_to_addr_id = CAC.src_addr_id;
+
+  -- Limpiar tabla temporal
+  DROP TABLE IF EXISTS stg_$target_schema.stg_${target_stg3}_order_ids;

@@ -1,0 +1,265 @@
+#------------------------------------------------------------#
+# Propósito  : Carga incremental FINAL - SEPARADO EN DOS PASOS
+# Proyecto   : One Hallway
+# SEPARADO   : DROP + CREATE en consultas separadas para evitar problemas de parsing
+#------------------------------------------------------------#
+---
+queries: |
+  SET spark.kryoserializer.buffer.max.mb=64;
+  SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY;
+  SET hive.exec.dynamic.partition.mode=nonstrict;
+  SET hive.exec.dynamic.partition=true;
+
+  
+  -- PASO 2: CREAR TABLA FINAL CON DEFINICIÓN LIMPIA
+  CREATE EXTERNAL TABLE IF NOT EXISTS $target_schema.$target_table (
+    RTN_LINE_KEY_DESC STRING COMMENT 'UNIQUE IDENTIFIER FOR THE RETURN LINE',
+    RTN_HDR_KEY_DESC STRING COMMENT 'UNIQUE IDENTIFIER FOR THE RETURN HEADER',
+    TENANT_ID_DESC STRING COMMENT 'IDENTIFIER FOR THE TENANT',
+    ITEM_ID_DESC STRING COMMENT 'UNIQUE IDENTIFIER FOR THE ITEM',
+    UPC_NBR_DESC STRING COMMENT 'UNIVERSAL PRODUCT CODE',
+    CREATE_TS_TM TIMESTAMP COMMENT 'TIMESTAMP WHEN THE RECORD WAS CREATED',
+    PRCH_DT DATE COMMENT 'DATE WHEN THE ORIGINAL PURCHASE WAS MADE',
+    RTN_TM TIMESTAMP COMMENT 'DATE AND TIME WHEN THE RETURN WAS PROCESSED',
+    RTN_NO_DESC STRING COMMENT 'RETURN NUMBER IDENTIFIER',
+    RTN_RSN_DESC STRING COMMENT 'REASON PROVIDED FOR THE RETURN',
+    EXTN_ADDL_RTN_RSN_DESC STRING COMMENT 'ADDITIONAL DETAILS ABOUT RETURN REASON',
+    ENTRY_TYPE_DESC STRING COMMENT 'TYPE OF ENTRY POINT FOR THE RETURN',
+    CREATE_USER_ID_CD STRING COMMENT 'ID OF THE USER WHO CREATED THE RETURN',
+    LINE_TOT_AMT DECIMAL(14,4) COMMENT 'TOTAL AMOUNT FOR THE LINE ITEM',
+    RTN_QTY INT COMMENT 'QUANTITY OF ITEMS RETURNED',
+    PARCL_DESC STRING COMMENT 'STANDARD CARRIER ALPHA CODE',
+    LAST_CREATE_TS_TM TIMESTAMP COMMENT 'LAST CREATION TIMESTAMP',
+    LAST_MODIFY_TS_TM TIMESTAMP COMMENT 'LAST MODIFICATION TIMESTAMP',
+    LAST_STATUS_CD INT COMMENT 'LAST STATUS CODE OF THE RETURN',
+    LAST_STATUS_TM TIMESTAMP COMMENT 'DATE AND TIME OF THE LAST STATUS UPDATE',
+    EXTN_TRK_NO_DESC STRING COMMENT 'TRACKING NUMBER FOR THE RETURN SHIPMENT',
+    EXTN_RFND_ADDL_STORE_DESC STRING COMMENT 'INDICATOR IF REFUND WAS PROCESSED AT STORE',
+    EXTN_RTN_MODE_DESC STRING COMMENT 'MODE OF RETURN (PICKUP, DROP-OFF, ETC.)',
+    MODIFY_USER_ID_DESC STRING COMMENT 'ID OF THE USER WHO MODIFIED THE RETURN',
+    DERIVED_FROM_ORDER_LINE_KEY_DESC STRING COMMENT 'KEY OF THE ORIGINAL ORDER LINE',
+    DERIVED_FROM_ORDER_HDR_KEY_DESC STRING COMMENT 'KEY OF THE ORIGINAL ORDER HEADER',
+    SHIP_TO_KEY_DESC STRING COMMENT 'KEY IDENTIFYING THE SHIPPING ADDRESS',
+    LINE_TYPE_DESC STRING COMMENT 'TYPE OF LINE ITEM',
+    STATUS_KEY INT COMMENT 'KEY REPRESENTING THE STATUS OF THE RETURN',
+    CMCRL_STATUS_DESC STRING COMMENT 'COMMERCIAL STATUS OF THE RETURN',
+    CRE_DT DATE COMMENT 'DATE WHEN THE RETURN REQUEST WAS CREATED',
+    ORIG_ORDER_DESC STRING COMMENT 'ORIGINAL ORDER NUMBER',
+    RTN_ORDER_NO_DESC STRING COMMENT 'RETURN ORDER NUMBER',
+    RTN_ORDER_LINE_NBR INT COMMENT 'RETURN ORDER LINE NUMBER',
+    UPC_NBR STRING COMMENT 'UNIVERSAL PRODUCT CODE',
+    ITEM_DESC_DESC STRING COMMENT 'DESC OF THE RETURNED ITEM',
+    UNIT_PRICE_AMT DECIMAL(14,4) COMMENT 'PRICE PER UNIT OF THE ITEM',
+    RCPT_DT DATE COMMENT 'DATE WHEN THE RECEIPT WAS ISSUED',
+    DLVR_TYPE_DESC_DESC STRING COMMENT 'TYPE OF DELIVERY METHOD',
+    CATG_DESC STRING COMMENT 'PRODUCT CATEGORY',
+    DETERMINANT_DESC STRING COMMENT 'DETERMINANT CODE',
+    PYMT_TYPE_DESC STRING COMMENT 'METHOD OF PAYMENT',
+    RTN_SHPG_GUID_DESC STRING COMMENT 'RETURN SHPG GUID NUMBER',
+    SLR_PRVDR_ID_DESC STRING COMMENT 'ID OF THE SELLER OR PROVIDER',
+    SLR_PRVDR_NM STRING COMMENT 'NAME OF THE SELLER OR PROVIDER',
+    CREATE_USER_ID_DESC STRING COMMENT 'ID OF THE USER WHO CREATED THE RECORD',
+    SHPMNT_NUM_DESC STRING COMMENT 'SHIPMENT NUMBER',
+    ORIGN_GUID_DESC STRING COMMENT 'ORIGIN GUIDE NUMBER',
+    ORIG_QTY INT COMMENT 'ORIGINAL QUANTITY ORDERED',
+    CHNL_DESC STRING COMMENT 'SALES OR RETURN CHANNEL',
+    LINE_SEQ_NO_DESC STRING COMMENT 'LINE SEQUENCE NUMBER',
+    PRIME_LINE_NBR INT COMMENT 'PRIMARY LINE NUMBER IN THE ORDER',
+    ORIG_CRE_DT DATE COMMENT 'ORIGINAL DATE WHEN THE ORDER WAS CREATED',
+    ITEM_WT_RATE DECIMAL(14,4) COMMENT 'WEIGHT OF THE ITEM',
+    ITEM_WT_UOM_DESC STRING COMMENT 'UNIT OF MEASURE FOR ITEM WEIGHT',
+    WHSE_DTL_DESC STRING COMMENT 'DETAILS ABOUT THE WAREHOUSE',
+    ORIGN_WHSE_DESC STRING COMMENT 'WAREHOUSE OF ORIGIN',
+    RFND_ADDL_STORE_DESC STRING COMMENT 'REFUND AT STORE INDICATOR',
+    PRCH_CHNL_DESC STRING COMMENT 'CHANNEL WHERE THE PURCHASE WAS MADE',
+    DX_COUPN_DESC STRING COMMENT 'DIGITAL EXPERIENCE COUPON DESCRIPTOR',
+    RFND_AMT DECIMAL(14,4) COMMENT 'AMOUNT REFUNDED TO THE CUSTOMER',
+    RTN_PIECE_NBR INT COMMENT 'NUMBER OF PIECES RETURNED',
+    RTN_TYPE_DESC STRING COMMENT 'TYPE OF RETURN (TOTAL, PARTIAL)',
+    DSPSTN_CD STRING COMMENT 'DISPOSITION CODE FOR RETURNED ITEM',
+    RTN_LINE_NBR INT COMMENT 'RETURN LINE NUMBER',
+    EXTD_SC_PRTNR_SVCS_ID STRING COMMENT 'EXTENDED SUPPLY CHAIN PARTNER SERVICES IDENTIFIER',
+    CRE_USER_DESC STRING COMMENT 'CREATOR USER',
+    CARRIER_NM STRING COMMENT 'NAME OF THE CARRIER',
+    TRK_NBR_DESC STRING COMMENT 'TRACKING NUMBER',
+    ITEM_LONG_DESC STRING COMMENT 'LONG DESCRIPTION OF THE ITEM',
+    GEO_REGION_CD STRING COMMENT 'GEOGRAPHIC REGION CODE',
+    OP_CMPNY_CD_DESC STRING COMMENT 'OPERATIONAL COMPANY CODE',
+    SRC_RCV_TS TIMESTAMP COMMENT 'SOURCE RECEIVED TIMESTAMP',
+    LOAD_TS TIMESTAMP COMMENT 'LOAD TIMESTAMP',
+    LOAD_USERID_DESC STRING COMMENT 'LOAD USER IDENTIFICATION',
+    UPD_TS TIMESTAMP COMMENT 'UPDATED TIMESTAMP',
+    UPD_USERID_DESC STRING COMMENT 'UPDATED USER IDENTIFICATION'
+  )
+  COMMENT '
+          Description: Detalle de las transacciones del cliente Devoluciones
+          Frequency Load: Daily
+          Type Load: incremental
+          Information Type: HIGH SENSITIVE
+          Domain: ECOMM
+          Project: OH
+          Developer: Ruben Valdes
+          TDO/PO Project: Lizbeth Alonso
+          Category: ADM100'
+  PARTITIONED BY (RTN_LINE_CRE_DT_PART DATE COMMENT 'DATE PART RETURNN LINE -- ONE HALLWAY -- USED TO IDENTIFY THE BUSINESS UNIT')        
+  STORED AS PARQUET
+  LOCATION '$target_bucket/$target_schema/$target_table';
+
+  -- PASO 3: CREAR TABLA TEMPORAL PARA TIPO_DE_DEVOL
+  DROP TABLE IF EXISTS stg_$target_schema.stg_${target_table}_tipo_devol_calc;
+  CREATE TABLE stg_$target_schema.stg_${target_table}_tipo_devol_calc AS
+  SELECT 
+    rtn.sales_order_num,
+    rtn.sales_order_line_num,    
+    MAX(rtn.rtn_qty) as rtn_qty,
+    MAX(ord.original_quantity) as original_quantity,    
+    SUM(MAX(ord.original_quantity)) OVER (PARTITION BY rtn.sales_order_num) as total_original_qty_order,
+    SUM(MAX(rtn.rtn_qty)) OVER (PARTITION BY rtn.sales_order_num) as total_rtn_qty_order,
+    CASE 
+      WHEN SUM(MAX(ord.original_quantity)) OVER (PARTITION BY rtn.sales_order_num) != 
+          SUM(MAX(rtn.rtn_qty)) OVER (PARTITION BY rtn.sales_order_num) 
+      THEN 'Parcial'
+      ELSE 'Total'
+    END as tipo_de_devol
+  FROM stg_$target_schema.stg_rtn_core rtn
+  LEFT JOIN stg_$target_schema.stg_rtn_order ord
+    ON rtn.sales_order_num = ord.sales_order_num 
+    AND rtn.sales_order_line_num = ord.sales_order_line_num
+  WHERE rtn.return_line_key IS NOT NULL  
+  GROUP BY 
+    rtn.sales_order_num,
+    rtn.sales_order_line_num;
+
+  -- PASO 4: INSERTAR DATOS EN LA TABLA FINAL
+  INSERT OVERWRITE TABLE $target_schema.$target_table
+  PARTITION (RTN_LINE_CRE_DT_PART)
+  SELECT 
+    CORE.return_line_key as RTN_LINE_KEY_DESC,
+    CORE.return_header_key as RTN_HDR_KEY_DESC,
+    CORE.tenant_id as TENANT_ID_DESC,
+    CASE WHEN ORDERS.slr_nm = 'Walmart' THEN ORDERS.wm_item_num ELSE ORDERS.prod_offr_id END as ITEM_ID_DESC,
+    ORDERS.upc as UPC_NBR_DESC,
+    CORE.rol_src_cre_ts as CREATE_TS_TM,
+    ORDERS.original_fecha_creacion as PRCH_DT,
+    CORE.rol_src_cre_ts as RTN_TM,
+    CORE.rtn_order_num as RTN_NO_DESC,
+    CORE.return_reason as RTN_RSN_DESC,
+    CORE.extn_additional_return_reason as EXTN_ADDL_RTN_RSN_DESC,
+    CORE.chnl_nm as ENTRY_TYPE_DESC,
+    CORE.createduserid as CREATE_USER_ID_CD,
+    ROUND(CORE.line_tot_amt/1.16, 2) as LINE_TOT_AMT,
+    CORE.rtn_qty as RTN_QTY,
+    FULFILL.std_carrier_alpha_cd as PARCL_DESC,
+    STATUS.src_cre_ts as LAST_CREATE_TS_TM,
+    CORE.rol_src_upd_ts as LAST_MODIFY_TS_TM,
+    STATUS.status_key as LAST_STATUS_CD,
+    STATUS.src_cre_ts as LAST_STATUS_TM,
+    STATUS.trk_nbr as EXTN_TRK_NO_DESC,
+    CORE.refund_at_store as EXTN_RFND_ADDL_STORE_DESC,
+    CORE.extn_return_mode as EXTN_RTN_MODE_DESC,
+    STATUS.agnt_cd as MODIFY_USER_ID_DESC,
+    CASE WHEN CORE.return_line_key IS NOT NULL 
+         THEN CONCAT(CORE.tenant_id, '_', CORE.sales_order_num, '_', CORE.sales_order_line_num) 
+         ELSE NULL END as DERIVED_FROM_ORDER_LINE_KEY_DESC,
+    CONCAT(CORE.tenant_id, '_', CORE.sales_order_num) as DERIVED_FROM_ORDER_HDR_KEY_DESC,
+    ORDERS.ship_to_key as SHIP_TO_KEY_DESC,
+    ORDERS.line_type as LINE_TYPE_DESC,
+    STATUS.status_key as STATUS_KEY,
+    STATUS.status_comercial as CMCRL_STATUS_DESC,
+    CORE.fecha_creacion as CRE_DT,
+    ORDERS.original_order as ORIG_ORDER_DESC,
+    CORE.rtn_order_num as RTN_ORDER_NO_DESC,
+    CAST(CORE.rtn_line_num as INT) as RTN_ORDER_LINE_NBR,
+    ORDERS.upc as UPC_NBR,
+    ITEMS.first_item_desc as ITEM_DESC_DESC,
+    CORE.precio_unitario as UNIT_PRICE_AMT,
+    STATUS.receipt_date as RCPT_DT,
+    ORDERS.tipo_de_entrega as DLVR_TYPE_DESC_DESC,
+    ITEMS.prod_grp_desc as CATG_DESC,
+    FULFILL.determinante as DETERMINANT_DESC,
+    PAYMENT.tipo_de_pago as PYMT_TYPE_DESC,
+    STATUS.guia_embarque_rtn as RTN_SHPG_GUID_DESC,
+    ORDERS.id_proveedor_seller as SLR_PRVDR_ID_DESC,
+    ORDERS.proveedor_seller as SLR_PRVDR_NM,
+    CORE.createduserid as CREATE_USER_ID_DESC,
+    SHIPMENT.shpmnt_num as SHPMNT_NUM_DESC,
+    SHIPMENT.guia_origen as ORIGN_GUID_DESC,
+    ORDERS.original_quantity as ORIG_QTY,
+    ORDERS.canal as CHNL_DESC,
+    ORDERS.line_seq_no as LINE_SEQ_NO_DESC,
+    CAST(ORDERS.prime_line_nbr as INT) as PRIME_LINE_NBR,
+    ORDERS.original_fecha_creacion as ORIG_CRE_DT,
+    ORDERS.item_weight as ITEM_WT_RATE,
+    ORDERS.item_weight_uom as ITEM_WT_UOM_DESC,
+    FULFILL.almacen_detalle as WHSE_DTL_DESC,
+    FULFILL.almacen_de_origen as ORIGN_WHSE_DESC,
+    CORE.refund_at_store as RFND_ADDL_STORE_DESC,
+    ORDERS.canal_compra as PRCH_CHNL_DESC,
+    ORDERS.dx_cupon_ds as DX_COUPN_DESC,
+    ROUND(CORE.line_tot_amt/1.16, 2) as RFND_AMT,
+    STATUS.piezas_dev as RTN_PIECE_NBR,
+    TIPO_DEVOL.tipo_de_devol as RTN_TYPE_DESC,
+    STATUS.disp_cd as DSPSTN_CD,
+    CAST(CORE.rtn_line_num as INT) as RTN_LINE_NBR,
+    ORDERS.extd_sps_id as EXTD_SC_PRTNR_SVCS_ID,
+    CORE.cre_user as CRE_USER_DESC,
+    STATUS.carrier_nm as CARRIER_NM,
+    STATUS.trk_nbr as TRK_NBR_DESC,
+    ITEMS.upc_desc as ITEM_LONG_DESC,
+    '$geo_region_cd' as GEO_REGION_CD,
+    '$op_cmpny_code' as OP_CMPNY_CD_DESC,
+    GREATEST(
+      COALESCE(CORE.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(STATUS.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)), 
+      COALESCE(ORDERS.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(FULFILL.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(PAYMENT.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(SHIPMENT.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP))
+    ) as SRC_RCV_TS,
+    CURRENT_TIMESTAMP() as LOAD_TS,
+    'SYSTEM' as LOAD_USERID_DESC,
+    CURRENT_TIMESTAMP() as UPD_TS,
+    'SYSTEM' as UPD_USERID_DESC,
+    DATE(CORE.rtn_cre_ts) as RTN_LINE_CRE_DT_PART 
+  FROM stg_$target_schema.stg_$target_stg1 CORE  
+  -- JOIN con Status consolidado (paso 2)
+  LEFT JOIN stg_$target_schema.stg_$target_stg2 STATUS
+    ON CORE.tenant_id = STATUS.tenant_id 
+    AND CORE.rtn_order_num = STATUS.rtn_order_num 
+    AND CORE.rtn_line_num = STATUS.rtn_line_num
+  
+  -- JOIN con Orders consolidado (paso 3)
+  LEFT JOIN stg_$target_schema.stg_$target_stg3 ORDERS
+    ON CORE.tenant_id = ORDERS.tenant_id 
+    AND CORE.sales_order_num = ORDERS.sales_order_num 
+    AND CORE.sales_order_line_num = ORDERS.sales_order_line_num
+  
+  -- JOIN con Payment consolidado (paso 4)
+  LEFT JOIN stg_$target_schema.stg_$target_stg4 PAYMENT
+    ON CORE.tenant_id = PAYMENT.tenant_id 
+    AND CORE.sales_order_num = PAYMENT.sales_order_num 
+    AND CORE.sales_order_line_num = PAYMENT.sales_order_line_num
+  
+  -- JOIN con Fulfillment consolidado (paso 5)
+  LEFT JOIN stg_$target_schema.stg_$target_stg5 FULFILL
+    ON CORE.tenant_id = FULFILL.tenant_id 
+    AND CORE.sales_order_num = FULFILL.sales_order_num 
+    AND CORE.sales_order_line_num = FULFILL.sales_order_line_num
+  
+  -- JOIN con Shipment consolidado (paso 6)
+  LEFT JOIN stg_$target_schema.stg_$target_stg6 SHIPMENT
+    ON CORE.tenant_id = SHIPMENT.tenant_id 
+    AND CORE.sales_order_num = SHIPMENT.sales_order_num 
+    AND CORE.sales_order_line_num = SHIPMENT.sales_order_line_num
+  
+  -- JOIN con tabla dimensional de Items
+  LEFT JOIN $target_schema.$target_table_item ITEMS
+    ON ORDERS.prod_offr_id = ITEMS.prod_offr_id
+  
+  -- JOIN con cálculo de TIPO_DE_DEVOL
+  LEFT JOIN stg_$target_schema.stg_${target_table}_tipo_devol_calc TIPO_DEVOL
+    ON CORE.sales_order_num = TIPO_DEVOL.sales_order_num 
+    AND CORE.sales_order_line_num = TIPO_DEVOL.sales_order_line_num;
+
+  -- PASO 5: LIMPIAR TABLA TEMPORAL
+  DROP TABLE IF EXISTS stg_$target_schema.stg_${target_table}_tipo_devol_calc;
