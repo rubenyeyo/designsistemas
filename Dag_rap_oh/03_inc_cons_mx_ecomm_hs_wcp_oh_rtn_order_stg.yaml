@@ -1,8 +1,7 @@
 #------------------------------------------------------------#
-# Propósito  : Carga incremental consolidada SO + SOL + SOP
-#              (Sales Orders + Sales Order Lines + Promos)
+# Propósito  : Carga incremental consolidada SO + SOL + SOP + CAC
+#              (Sales Orders + Sales Order Lines + Promos + Customer Address Contact)
 # Proyecto   : One Hallway
-# TEMPORAL   : Sin CAC (cust_addr_cntct) - tabla no disponible
 #------------------------------------------------------------#
 ---
 queries: |
@@ -53,18 +52,17 @@ queries: |
     -- Campos de SOP (Sales Order Promo)
     dx_cupon_ds              STRING,
     extd_coupn_cd_array      STRING,
-    
-    -- *** CAMPOS CAC COMENTADOS TEMPORALMENTE ***
-    -- first_name               STRING,
-    -- last_name                STRING,
-    -- calle                    STRING,
-    -- colonia                  STRING,
-    -- delegacion               STRING,
-    -- estado                   STRING,
-    -- cp                       STRING,
-    -- telefono                 STRING,
-    -- email                    STRING,
-    -- creacion_email           DATE,
+
+    first_name               STRING,
+    last_name                STRING,
+    calle                    STRING,
+    colonia                  STRING,
+    delegacion               STRING,
+    estado                   STRING,
+    cp                       STRING,
+    telefono                 STRING,
+    email                    STRING,
+    creacion_email           DATE,
     
     -- Control técnico
     src_upd_ts               TIMESTAMP
@@ -80,7 +78,7 @@ queries: |
   WHERE sales_order_num IS NOT NULL AND sales_order_line_num IS NOT NULL
   GROUP BY tenant_id, sales_order_num, sales_order_line_num;
 
-  -- Carga consolidada SO + SOL + SOP (SIN CAC)
+  -- Carga consolidada SO + SOL + SOP + CAC (CON CAC HABILITADO)
   INSERT OVERWRITE TABLE stg_$target_schema.stg_$target_stg3
   SELECT
     -- Campos de SOL (Sales Order Line) - Tabla principal
@@ -160,25 +158,23 @@ queries: |
     -- Campos de SOP (Sales Order Promo)
     SOP.extd_coupn_cd_array as dx_cupon_ds,
     SOP.EXTD_COUPN_CD_ARRAY as extd_coupn_cd_array,
+    CAC.persn_first_nm as first_name,
+    CAC.persn_last_nm as last_name,
+    CAC.addr_line_1_txt as calle,
+    CAC.addr_line_2_txt as colonia,
+    CAC.addr_line_3_txt as delegacion,
+    CAC.st_prov_nm as estado,
+    CAC.zip_cd as cp,
+    CAC.persn_daytm_ph_nbr as telefono,
+    CAC.persn_email_id as email,
+    CAST(CAC.src_create_ts AS DATE) as creacion_email,
     
-    -- *** CAMPOS CAC COMENTADOS TEMPORALMENTE ***
-    -- CAC.persn_first_nm as first_name,
-    -- CAC.persn_last_nm as last_name,
-    -- CAC.addr_line_1_txt as calle,
-    -- CAC.addr_line_2_txt as colonia,
-    -- CAC.addr_line_3_txt as delegacion,
-    -- CAC.st_prov_nm as estado,
-    -- CAC.zip_cd as cp,
-    -- CAC.persn_daytm_ph_nbr as telefono,
-    -- CAC.persn_email_id as email,
-    -- CAST(CAC.src_create_ts AS DATE) as creacion_email,
-    
-    -- Control técnico - timestamp más reciente (SIN CAC)
+    -- Control técnico - timestamp más reciente (CON CAC INCLUIDO)
     GREATEST(
       COALESCE(SOL.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP)),
       COALESCE(SO.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP)),
-      COALESCE(SOP.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP))
-      -- COALESCE(CAC.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP))  -- COMENTADO
+      COALESCE(SOP.SRC_MODFD_TS, CAST('1900-01-01' AS TIMESTAMP)),
+      COALESCE(CAC.src_upd_ts, CAST('1900-01-01' AS TIMESTAMP))  -- DESCOMENTADO
     ) AS src_upd_ts
 
   FROM stg_$target_schema.stg_${target_stg3}_order_ids ids
@@ -198,11 +194,11 @@ queries: |
   LEFT JOIN $source_schema2.$source_target13 SOP  -- sales_order_promo
     ON SO.tenant_id = SOP.tenant_id 
     AND SO.sales_order_num = SOP.sales_order_num 
-    AND SOP.EXTD_COUPN_CD_ARRAY IS NOT NULL;
+    AND SOP.EXTD_COUPN_CD_ARRAY IS NOT NULL
   
-  -- *** JOIN CON CAC COMENTADO TEMPORALMENTE ***
-  -- LEFT JOIN $source_schema4.$source_target16 CAC  -- cust_addr_cntct
-  --   ON SO.src_bill_to_addr_id = CAC.src_addr_id;
+  -- *** JOIN CON CAC  ***
+  LEFT JOIN $source_schema4.$source_target16 CAC  -- cust_addr_cntct
+    ON SO.src_bill_to_addr_id = CAC.src_addr_id;
 
   -- Limpiar tabla temporal
   DROP TABLE IF EXISTS stg_$target_schema.stg_${target_stg3}_order_ids;
